@@ -59,4 +59,21 @@ class ConfigDefinition extends BaseConfigDefinition
         // @formatter:on
         return $parametersNode;
     }
+
+    /**
+     * Root definition to be overridden in special cases
+     */
+    protected function getRootDefinition(TreeBuilder $treeBuilder): ArrayNodeDefinition
+    {
+        /** @var ArrayNodeDefinition $rootNode */
+        $rootNode = $treeBuilder->root('root');
+
+        // @formatter:off
+        $rootNode
+            ->children()
+            ->append($this->getParametersDefinition());
+        // @formatter:on
+
+        return $rootNode;
+    }
 }
