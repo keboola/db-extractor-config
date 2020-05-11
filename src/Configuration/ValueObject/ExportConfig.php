@@ -67,6 +67,9 @@ class ExportConfig implements ValueObject
         ?array $primaryKey,
         int $maxRetries
     ) {
+        $query = $query !== null ? trim($query) : null;
+        $outputTable = trim($outputTable);
+
         if ($query === null && $table === null) {
             throw new InvalidArgumentException('Query or table must be specified.');
         }
