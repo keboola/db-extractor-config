@@ -62,7 +62,7 @@ abstract class AbstractConfigTest extends TestCase
     {
         $env = strtoupper($driver) . '_' . $suffix;
         if ($required) {
-            if (false === getenv($env)) {
+            if (getenv($env) === false) {
                 throw new \Exception($env . ' environment variable must be set.');
             }
         }
