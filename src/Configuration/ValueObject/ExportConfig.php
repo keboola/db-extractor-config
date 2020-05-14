@@ -121,7 +121,7 @@ class ExportConfig implements ValueObject
         return $this->table;
     }
 
-    public function isIncremental(): bool
+    public function isIncrementalFetching(): bool
     {
         return $this->incrementalFetchingConfig !== null;
     }
@@ -135,7 +135,7 @@ class ExportConfig implements ValueObject
         return $this->incrementalFetchingConfig->hasLimit();
     }
 
-    public function getIncrementalLimit(): int
+    public function getIncrementalFetchingLimit(): int
     {
         if ($this->incrementalFetchingConfig === null) {
             throw new PropertyNotSetException('Incremental fetching is not enabled.');
@@ -144,7 +144,7 @@ class ExportConfig implements ValueObject
         return $this->incrementalFetchingConfig->getLimit();
     }
 
-    public function getIncrementalColumn(): string
+    public function getIncrementalFetchingColumn(): string
     {
         if ($this->incrementalFetchingConfig === null) {
             throw new PropertyNotSetException('Incremental fetching is not enabled.');

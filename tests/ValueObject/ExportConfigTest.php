@@ -75,7 +75,7 @@ class ExportConfigTest extends BaseValueObjectTest
                 return $export->hasTable();
             },
             'incrementalFetchingConfig' => function (ExportConfig $export) {
-                return $export->isIncremental();
+                return $export->isIncrementalFetching();
             },
             'columns' => function (ExportConfig $export) {
                 return $export->hasColumns();
@@ -186,10 +186,10 @@ class ExportConfigTest extends BaseValueObjectTest
 
         Assert::assertSame('table1', $export->getTable()->getName());
         Assert::assertSame('schema1', $export->getTable()->getSchema());
-        Assert::assertSame(true, $export->isIncremental());
-        Assert::assertSame('abc', $export->getIncrementalColumn());
+        Assert::assertSame(true, $export->isIncrementalFetching());
+        Assert::assertSame('abc', $export->getIncrementalFetchingColumn());
         Assert::assertSame('abc', $export->getIncrementalFetchingConfig()->getColumn());
-        Assert::assertSame(100, $export->getIncrementalLimit());
+        Assert::assertSame(100, $export->getIncrementalFetchingLimit());
         Assert::assertSame(100, $export->getIncrementalFetchingConfig()->getLimit());
         Assert::assertSame(['abc', 'def'], $export->getColumns());
         Assert::assertSame('output', $export->getOutputTable());
