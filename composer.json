@@ -4,9 +4,9 @@
     "type": "library",
     "license": "MIT",
     "require": {
-        "php": ">=8.2",
-        "keboola/php-component": "^9.4",
-        "symfony/config": "^6.3"
+        "php": ">=7.4",
+        "keboola/php-component": "^10",
+        "symfony/config": "^5.0"
     },
     "require-dev": {
         "ext-json": "*",
