@@ -1132,9 +1132,6 @@ class ConfigTest extends AbstractConfigTest
         new Config($configurationArray, new ConfigRowDefinition());
     }
 
-    /**
-     * @return array
-     */
     protected function getDbConfigurationArray(): array
     {
         return [
@@ -1153,9 +1150,6 @@ class ConfigTest extends AbstractConfigTest
         ];
     }
 
-    /**
-     * @return array
-     */
     protected function getExpectedDbConfigArray(): array
     {
         return [
