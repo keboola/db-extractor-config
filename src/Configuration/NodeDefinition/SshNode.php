@@ -42,6 +42,7 @@ class SshNode extends ArrayNodeDefinition
         $this->addUserNode($builder);
         $this->addCompressionNode($builder);
         $this->addMaxRetriesNode($builder);
+        $this->addDebugNode($builder);
         $this->addValidation();
     }
 
@@ -98,6 +99,11 @@ class SshNode extends ArrayNodeDefinition
     protected function addMaxRetriesNode(NodeBuilder $builder): void
     {
         $builder->scalarNode('maxRetries');
+    }
+
+    protected function addDebugNode(NodeBuilder $builder): void
+    {
+        $builder->booleanNode('debug')->defaultValue(false);
     }
 
     protected function addValidation(): void
