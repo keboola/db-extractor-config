@@ -215,6 +215,7 @@ class ConfigTest extends AbstractConfigTest
                         'keys' => ['public' => 'anyKey'],
                         'maxRetries' => 10,
                         'compression' => false,
+                        'debug' => false,
                     ],
                 ],
             ],
@@ -245,6 +246,7 @@ class ConfigTest extends AbstractConfigTest
                         'keys' => ['public' => 'anyKey'],
                         'maxRetries' => 10,
                         'compression' => false,
+                        'debug' => false,
                     ],
                 ],
             ],
@@ -276,6 +278,39 @@ class ConfigTest extends AbstractConfigTest
                         'keys' => ['public' => 'anyKey', '#private' => 'anyKey'],
                         'maxRetries' => 10,
                         'compression' => false,
+                        'debug' => false,
+                    ],
+                ],
+            ],
+        ];
+
+        $config = new Config($configurationArray, new ActionConfigRowDefinition());
+        $this->assertEquals($configurationArray, $config->getData());
+    }
+
+    public function testConfigWithSshTunnelEnabledWithDebug(): void
+    {
+        $configurationArray = [
+            'parameters' => [
+                'data_dir' => '/code/tests/Keboola/DbExtractor/../../data',
+                'extractor_class' => 'MySQL',
+                'db' => [
+                    'host' => 'mysql',
+                    'user' => 'root',
+                    '#password' => 'rootpassword',
+                    'database' => 'test',
+                    'port' => 3306,
+                    'initQueries' => [],
+                    'ssh' => [
+                        'enabled' => true,
+                        'user' => 'root',
+                        'sshHost' => 'sshproxy',
+                        'sshPort' => '22',
+                        'localPort' => '33306',
+                        'keys' => ['public' => 'anyKey', '#private' => 'anyKey'],
+                        'maxRetries' => 10,
+                        'compression' => false,
+                        'debug' => true,
                     ],
                 ],
             ],
