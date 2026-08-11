@@ -51,4 +51,12 @@ class WindowBoundResolverTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $r->resolveLowerBound('10 days ago', 'INTEGER', $now);
     }
+
+    public function testUnparseableDateThrows(): void
+    {
+        $now = new DateTimeImmutable('2026-08-11 12:00:00');
+        $r = new WindowBoundResolver();
+        $this->expectException(InvalidArgumentException::class);
+        $r->resolveLowerBound('not a date', 'TIMESTAMP', $now);
+    }
 }
