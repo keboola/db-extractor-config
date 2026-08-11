@@ -172,6 +172,59 @@ class ExportConfig implements ValueObject
         return $this->incrementalFetchingConfig;
     }
 
+    public function hasIncrementalFetchingWindow(): bool
+    {
+        return $this->incrementalFetchingConfig !== null
+            && $this->incrementalFetchingConfig->hasWindow();
+    }
+
+    public function getIncrementalFetchingWindowStart(): ?string
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        return $this->incrementalFetchingConfig->getWindowStart();
+    }
+
+    public function getIncrementalFetchingWindowEnd(): ?string
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        return $this->incrementalFetchingConfig->getWindowEnd();
+    }
+
+    public function getIncrementalColumnType(): string
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        return $this->incrementalFetchingConfig->getColumnType();
+    }
+
+    public function withIncrementalColumnType(string $columnType): self
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        return new self(
+            $this->configId,
+            $this->configName,
+            $this->query,
+            $this->table,
+            $this->incrementalLoading,
+            $this->incrementalFetchingConfig->withColumnType($columnType),
+            $this->columns,
+            $this->outputTable,
+            $this->primaryKey,
+            $this->maxRetries,
+        );
+    }
+
     public function hasQuery(): bool
     {
         return $this->query !== null;

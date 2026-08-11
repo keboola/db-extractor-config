@@ -414,4 +414,102 @@ class ExportConfigTest extends TestCase
         Assert::assertSame(123, $config->getConfigId());
         Assert::assertSame('my config name', $config->getConfigName());
     }
+
+    public function testIncrementalFetchingWindow(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+            'incremental' => true,
+            'incrementalFetchingColumn' => 'ts',
+            'incrementalFetchingStart' => '20 minutes ago',
+            'incrementalFetchingEnd' => 'now',
+        ]);
+
+        Assert::assertTrue($config->isIncrementalFetching());
+        Assert::assertTrue($config->hasIncrementalFetchingWindow());
+        Assert::assertSame('20 minutes ago', $config->getIncrementalFetchingWindowStart());
+        Assert::assertSame('now', $config->getIncrementalFetchingWindowEnd());
+    }
+
+    public function testIncrementalFetchingNoWindow(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+            'incrementalFetchingColumn' => 'ts',
+        ]);
+
+        Assert::assertTrue($config->isIncrementalFetching());
+        Assert::assertFalse($config->hasIncrementalFetchingWindow());
+        Assert::assertNull($config->getIncrementalFetchingWindowStart());
+        Assert::assertNull($config->getIncrementalFetchingWindowEnd());
+    }
+
+    public function testWithIncrementalColumnTypeIsImmutable(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+            'incrementalFetchingColumn' => 'ts',
+            'incrementalFetchingStart' => '20 minutes ago',
+        ]);
+
+        // type not threaded yet
+        try {
+            $config->getIncrementalColumnType();
+            Assert::fail('Exception is expected.');
+        } catch (PropertyNotSetException $e) {
+            // ok
+        }
+
+        $typed = $config->withIncrementalColumnType('TIMESTAMP');
+        Assert::assertSame('TIMESTAMP', $typed->getIncrementalColumnType());
+        // window + column preserved through the copy
+        Assert::assertSame('20 minutes ago', $typed->getIncrementalFetchingWindowStart());
+        Assert::assertSame('ts', $typed->getIncrementalFetchingColumn());
+
+        // immutability: original is untouched and still throws
+        try {
+            $config->getIncrementalColumnType();
+            Assert::fail('Exception is expected.');
+        } catch (PropertyNotSetException $e) {
+            // ok
+        }
+    }
+
+    public function testWindowAccessorsThrowWhenNoIncrementalFetching(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+        ]);
+
+        Assert::assertFalse($config->isIncrementalFetching());
+        Assert::assertFalse($config->hasIncrementalFetchingWindow());
+        try {
+            $config->getIncrementalFetchingWindowStart();
+            Assert::fail('Exception is expected.');
+        } catch (PropertyNotSetException $e) {
+            // ok
+        }
+        try {
+            $config->getIncrementalColumnType();
+            Assert::fail('Exception is expected.');
+        } catch (PropertyNotSetException $e) {
+            // ok
+        }
+    }
 }
