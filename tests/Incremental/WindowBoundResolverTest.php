@@ -1,0 +1,22 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Keboola\DbExtractorConfig\Tests\Incremental;
+
+use DateTimeImmutable;
+use Keboola\DbExtractorConfig\Exception\InvalidArgumentException;
+use Keboola\DbExtractorConfig\Incremental\WindowBoundResolver;
+use PHPUnit\Framework\TestCase;
+
+class WindowBoundResolverTest extends TestCase
+{
+    public function testTimestampStartResolvesRelativeAndAbsolute(): void
+    {
+        $now = new DateTimeImmutable('2026-08-11 12:00:00');
+        $r = new WindowBoundResolver();
+        self::assertSame('2026-08-01 12:00:00', $r->resolveLowerBound('10 days ago', 'TIMESTAMP', $now));
+        self::assertSame('2026-01-01 00:00:00', $r->resolveLowerBound('2026-01-01', 'TIMESTAMP', $now));
+        self::assertNull($r->resolveLowerBound(null, 'TIMESTAMP', $now));
+    }
+}
