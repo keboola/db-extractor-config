@@ -67,4 +67,11 @@ class WindowBoundResolverTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $r->resolveLowerBound('1', 'BOOLEAN', $now);
     }
+
+    public function testEmptyUpperBoundResolvesToNull(): void
+    {
+        $now = new DateTimeImmutable('2026-08-11 12:00:00');
+        $r = new WindowBoundResolver();
+        self::assertNull($r->resolveUpperBound('', 'TIMESTAMP', $now));
+    }
 }
