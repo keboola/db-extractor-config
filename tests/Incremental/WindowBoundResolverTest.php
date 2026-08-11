@@ -35,4 +35,12 @@ class WindowBoundResolverTest extends TestCase
         self::assertSame('2026-08-11 11:00:00', $r->resolveUpperBound('1 hour ago', 'TIMESTAMP', $now));
         self::assertSame('2026-06-01 00:00:00', $r->resolveUpperBound('2026-06-01', 'TIMESTAMP', $now));
     }
+
+    public function testNumericBoundsPassThroughAsIs(): void
+    {
+        $now = new DateTimeImmutable('2026-08-11 12:00:00');
+        $r = new WindowBoundResolver();
+        self::assertSame('50000', $r->resolveLowerBound('50000', 'INTEGER', $now));
+        self::assertSame('9999', $r->resolveUpperBound('9999', 'NUMERIC', $now));
+    }
 }
