@@ -19,4 +19,12 @@ class WindowBoundResolverTest extends TestCase
         self::assertSame('2026-01-01 00:00:00', $r->resolveLowerBound('2026-01-01', 'TIMESTAMP', $now));
         self::assertNull($r->resolveLowerBound(null, 'TIMESTAMP', $now));
     }
+
+    public function testTimestampSubHourRelativeLowerAndNowUpperBound(): void
+    {
+        $now = new DateTimeImmutable('2026-08-11 12:00:00');
+        $r = new WindowBoundResolver();
+        self::assertSame('2026-08-11 11:40:00', $r->resolveLowerBound('20 minutes ago', 'TIMESTAMP', $now));
+        self::assertSame('2026-08-11 12:00:00', $r->resolveUpperBound('now', 'TIMESTAMP', $now));
+    }
 }
