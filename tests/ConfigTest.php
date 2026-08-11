@@ -1151,6 +1151,71 @@ class ConfigTest extends AbstractConfigTest
         Assert::assertSame(null, $configData['parameters']['incrementalFetchingColumn']);
     }
 
+    public function testIncrementalFetchingWindow(): void
+    {
+        $configurationArray = [
+            'parameters' => [
+                'data_dir' => '/code/tests/Keboola/DbExtractor/../../data',
+                'extractor_class' => 'MySQL',
+                'outputTable' => 'in.c-main.window',
+                'db' => $this->getDbConfigurationArray(),
+                'table' => ['tableName' => 'name', 'schema' => 'schema'],
+                'incremental' => true,
+                'incrementalFetchingColumn' => 'ts',
+                'incrementalFetchingStart' => '20 minutes ago',
+                'incrementalFetchingEnd' => 'now',
+            ],
+        ];
+
+        $config = new Config($configurationArray, new ConfigRowDefinition());
+        /** @var array $data */
+        $data = $config->getData();
+        Assert::assertSame('ts', $data['parameters']['incrementalFetchingColumn']);
+        Assert::assertSame('20 minutes ago', $data['parameters']['incrementalFetchingStart']);
+        Assert::assertSame('now', $data['parameters']['incrementalFetchingEnd']);
+    }
+
+    public function testIncrementalFetchingWindowWithQueryFails(): void
+    {
+        $configurationArray = [
+            'parameters' => [
+                'data_dir' => '/code/tests/Keboola/DbExtractor/../../data',
+                'extractor_class' => 'MySQL',
+                'outputTable' => 'fake.output',
+                'db' => $this->getDbConfigurationArray(),
+                'query' => 'select 1 from test',
+                'incrementalFetchingStart' => '20 minutes ago',
+            ],
+        ];
+
+        $this->expectException(ConfigUserException::class);
+        $this->expectExceptionMessage(
+            'The incremental fetching window is configured, ' .
+            'but incremental fetching is not supported for custom query.',
+        );
+        new Config($configurationArray, new ConfigRowDefinition());
+    }
+
+    public function testIncrementalFetchingWindowWithoutColumnFails(): void
+    {
+        $configurationArray = [
+            'parameters' => [
+                'data_dir' => '/code/tests/Keboola/DbExtractor/../../data',
+                'extractor_class' => 'MySQL',
+                'outputTable' => 'in.c-main.window',
+                'db' => $this->getDbConfigurationArray(),
+                'table' => ['tableName' => 'name', 'schema' => 'schema'],
+                'incrementalFetchingStart' => '20 minutes ago',
+            ],
+        ];
+
+        $this->expectException(ConfigUserException::class);
+        $this->expectExceptionMessage(
+            'The incremental fetching window is configured, but "incrementalFetchingColumn" is missing.',
+        );
+        new Config($configurationArray, new ConfigRowDefinition());
+    }
+
     public function testMissingDbNode(): void
     {
         $configurationArray = [

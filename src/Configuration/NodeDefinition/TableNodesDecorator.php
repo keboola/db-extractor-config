@@ -54,6 +54,22 @@ class TableNodesDecorator implements DecoratorInterface
             );
         }
 
+        $hasWindow = !empty($v['incrementalFetchingStart']) || !empty($v['incrementalFetchingEnd']);
+
+        if (!empty($v['query']) && $hasWindow) {
+            throw new InvalidConfigurationException(
+                'The incremental fetching window is configured, ' .
+                'but incremental fetching is not supported for custom query.',
+            );
+        }
+
+        if ($hasWindow && empty($v['incrementalFetchingColumn'])) {
+            throw new InvalidConfigurationException(
+                'The incremental fetching window is configured, ' .
+                'but "incrementalFetchingColumn" is missing.',
+            );
+        }
+
         return $v;
     }
 
@@ -154,6 +170,10 @@ class TableNodesDecorator implements DecoratorInterface
                 ->treatNullLike(0)
                 // Zero is taken as disabled, see "self::normalize" method
                 ->min(0)
+            ->end()
+            ->scalarNode('incrementalFetchingStart')
+            ->end()
+            ->scalarNode('incrementalFetchingEnd')
             ->end();
         // @formatter:on
     }
