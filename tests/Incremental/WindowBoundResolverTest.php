@@ -43,4 +43,12 @@ class WindowBoundResolverTest extends TestCase
         self::assertSame('50000', $r->resolveLowerBound('50000', 'INTEGER', $now));
         self::assertSame('9999', $r->resolveUpperBound('9999', 'NUMERIC', $now));
     }
+
+    public function testNumericColumnRejectsNonNumericValue(): void
+    {
+        $now = new DateTimeImmutable('2026-08-11 12:00:00');
+        $r = new WindowBoundResolver();
+        $this->expectException(InvalidArgumentException::class);
+        $r->resolveLowerBound('10 days ago', 'INTEGER', $now);
+    }
 }
