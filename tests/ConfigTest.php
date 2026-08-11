@@ -1216,6 +1216,25 @@ class ConfigTest extends AbstractConfigTest
         new Config($configurationArray, new ConfigRowDefinition());
     }
 
+    public function testIncrementalFetchingWindowZeroStartWithoutColumnFails(): void
+    {
+        $configurationArray = [
+            'parameters' => [
+                'data_dir' => '/code/tests/Keboola/DbExtractor/../../data',
+                'extractor_class' => 'MySQL',
+                'outputTable' => 'in.c-main.window',
+                'db' => $this->getDbConfigurationArray(),
+                'table' => ['tableName' => 'name', 'schema' => 'schema'],
+                'incrementalFetchingStart' => '0',
+            ],
+        ];
+        $this->expectException(ConfigUserException::class);
+        $this->expectExceptionMessage(
+            'The incremental fetching window is configured, but "incrementalFetchingColumn" is missing.',
+        );
+        new Config($configurationArray, new ConfigRowDefinition());
+    }
+
     public function testMissingDbNode(): void
     {
         $configurationArray = [

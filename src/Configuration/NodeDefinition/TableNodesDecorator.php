@@ -54,7 +54,10 @@ class TableNodesDecorator implements DecoratorInterface
             );
         }
 
-        $hasWindow = !empty($v['incrementalFetchingStart']) || !empty($v['incrementalFetchingEnd']);
+        $windowStart = $v['incrementalFetchingStart'] ?? null;
+        $windowEnd = $v['incrementalFetchingEnd'] ?? null;
+        $hasWindow = ($windowStart !== null && $windowStart !== '')
+            || ($windowEnd !== null && $windowEnd !== '');
 
         if (!empty($v['query']) && $hasWindow) {
             throw new InvalidConfigurationException(
