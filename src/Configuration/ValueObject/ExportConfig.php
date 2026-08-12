@@ -205,24 +205,18 @@ class ExportConfig implements ValueObject
         return $this->incrementalFetchingConfig->getColumnType();
     }
 
-    public function withIncrementalColumnType(string $columnType): self
+    public function withIncrementalColumnType(string $columnType): static
     {
         if ($this->incrementalFetchingConfig === null) {
             throw new PropertyNotSetException('Incremental fetching is not enabled.');
         }
 
-        return new self(
-            $this->configId,
-            $this->configName,
-            $this->query,
-            $this->table,
-            $this->incrementalLoading,
-            $this->incrementalFetchingConfig->withColumnType($columnType),
-            $this->columns,
-            $this->outputTable,
-            $this->primaryKey,
-            $this->maxRetries,
-        );
+        // Use clone (not "new self(...)") so extractor-specific ExportConfig subclasses
+        // (e.g. PgsqlExportConfig, which has extra constructor params) keep their runtime
+        // class and any subclass-only properties intact.
+        $clone = clone $this;
+        $clone->incrementalFetchingConfig = $this->incrementalFetchingConfig->withColumnType($columnType);
+        return $clone;
     }
 
     public function hasQuery(): bool

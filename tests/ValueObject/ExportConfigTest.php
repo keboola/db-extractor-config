@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Keboola\DbExtractorConfig\Tests\ValueObject;
 
 use Keboola\DbExtractorConfig\Configuration\ValueObject\ExportConfig;
+use Keboola\DbExtractorConfig\Configuration\ValueObject\IncrementalFetchingConfig;
+use Keboola\DbExtractorConfig\Configuration\ValueObject\InputTable;
 use Keboola\DbExtractorConfig\Configuration\ValueObject\SSLConnectionConfig;
 use Keboola\DbExtractorConfig\Exception\PropertyNotSetException;
 use PHPUnit\Framework\Assert;
@@ -485,6 +487,38 @@ class ExportConfigTest extends TestCase
         } catch (PropertyNotSetException $e) {
             // ok
         }
+    }
+
+    public function testWithIncrementalColumnTypePreservesSubclass(): void
+    {
+        // Regression test: extractor-specific ExportConfig subclasses (e.g. pgsql's
+        // PgsqlExportConfig) add their own constructor params/properties. withIncrementalColumnType()
+        // must return an instance of the SAME runtime class (via clone), not silently downgrade to
+        // the base ExportConfig - that would drop the subclass' state and break `instanceof` checks
+        // in adapters that expect the extractor-specific subclass.
+        $config = new class(
+            null,
+            null,
+            null,
+            new InputTable('table', 'schema'),
+            false,
+            IncrementalFetchingConfig::fromArray(['incrementalFetchingColumn' => 'ts']),
+            [],
+            'output-table',
+            [],
+            12,
+        ) extends ExportConfig {
+            public function getMarker(): string
+            {
+                return 'subclass-marker';
+            }
+        };
+
+        $typed = $config->withIncrementalColumnType('TIMESTAMP');
+
+        Assert::assertInstanceOf(get_class($config), $typed);
+        Assert::assertSame('subclass-marker', $typed->getMarker());
+        Assert::assertSame('TIMESTAMP', $typed->getIncrementalColumnType());
     }
 
     public function testWindowAccessorsThrowWhenNoIncrementalFetching(): void
