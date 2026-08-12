@@ -172,10 +172,49 @@ class ExportConfig implements ValueObject
         return $this->incrementalFetchingConfig;
     }
 
+    public function getIncrementalFetchingMode(): string
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        return $this->incrementalFetchingConfig->getMode();
+    }
+
+    public function isIncrementalFetchingWindowMode(): bool
+    {
+        return $this->incrementalFetchingConfig !== null
+            && $this->incrementalFetchingConfig->isWindowMode();
+    }
+
+    public function hasIncrementalFetchingLookback(): bool
+    {
+        return $this->incrementalFetchingConfig !== null
+            && $this->incrementalFetchingConfig->hasLookback();
+    }
+
+    public function getIncrementalFetchingLookback(): ?string
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        return $this->incrementalFetchingConfig->getLookback();
+    }
+
     public function hasIncrementalFetchingWindow(): bool
     {
         return $this->incrementalFetchingConfig !== null
             && $this->incrementalFetchingConfig->hasWindow();
+    }
+
+    /**
+     * True when the run needs the incremental column TYPE resolved (to compute bounds): either a window
+     * range (window mode) or a lookback offset (watermark mode). Plain watermark mode needs no type.
+     */
+    public function hasIncrementalFetchingBounds(): bool
+    {
+        return $this->hasIncrementalFetchingWindow() || $this->hasIncrementalFetchingLookback();
     }
 
     public function getIncrementalFetchingWindowStart(): ?string

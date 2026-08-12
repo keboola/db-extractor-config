@@ -1162,6 +1162,7 @@ class ConfigTest extends AbstractConfigTest
                 'table' => ['tableName' => 'name', 'schema' => 'schema'],
                 'incremental' => true,
                 'incrementalFetchingColumn' => 'ts',
+                'incrementalFetchingMode' => 'window',
                 'incrementalFetchingStart' => '20 minutes ago',
                 'incrementalFetchingEnd' => 'now',
             ],
@@ -1171,8 +1172,111 @@ class ConfigTest extends AbstractConfigTest
         /** @var array $data */
         $data = $config->getData();
         Assert::assertSame('ts', $data['parameters']['incrementalFetchingColumn']);
+        Assert::assertSame('window', $data['parameters']['incrementalFetchingMode']);
         Assert::assertSame('20 minutes ago', $data['parameters']['incrementalFetchingStart']);
         Assert::assertSame('now', $data['parameters']['incrementalFetchingEnd']);
+    }
+
+    public function testIncrementalFetchingModeDefaultOmitted(): void
+    {
+        // No mode configured => schema does not inject one (value object applies the watermark default),
+        // so existing configs stay byte-for-byte unchanged.
+        $configurationArray = [
+            'parameters' => [
+                'data_dir' => '/code/tests/Keboola/DbExtractor/../../data',
+                'extractor_class' => 'MySQL',
+                'outputTable' => 'in.c-main.window',
+                'db' => $this->getDbConfigurationArray(),
+                'table' => ['tableName' => 'name', 'schema' => 'schema'],
+                'incremental' => true,
+                'incrementalFetchingColumn' => 'ts',
+            ],
+        ];
+
+        $config = new Config($configurationArray, new ConfigRowDefinition());
+        /** @var array $data */
+        $data = $config->getData();
+        Assert::assertArrayNotHasKey('incrementalFetchingMode', $data['parameters']);
+    }
+
+    public function testIncrementalFetchingModeInvalidValueFails(): void
+    {
+        $configurationArray = [
+            'parameters' => [
+                'data_dir' => '/code/tests/Keboola/DbExtractor/../../data',
+                'extractor_class' => 'MySQL',
+                'outputTable' => 'in.c-main.window',
+                'db' => $this->getDbConfigurationArray(),
+                'table' => ['tableName' => 'name', 'schema' => 'schema'],
+                'incrementalFetchingColumn' => 'ts',
+                'incrementalFetchingMode' => 'sliding',
+            ],
+        ];
+
+        $this->expectException(ConfigUserException::class);
+        new Config($configurationArray, new ConfigRowDefinition());
+    }
+
+    public function testIncrementalFetchingLookback(): void
+    {
+        $configurationArray = [
+            'parameters' => [
+                'data_dir' => '/code/tests/Keboola/DbExtractor/../../data',
+                'extractor_class' => 'MySQL',
+                'outputTable' => 'in.c-main.lookback',
+                'db' => $this->getDbConfigurationArray(),
+                'table' => ['tableName' => 'name', 'schema' => 'schema'],
+                'incremental' => true,
+                'incrementalFetchingColumn' => 'ts',
+                'incrementalFetchingLookback' => '20 minutes',
+            ],
+        ];
+
+        $config = new Config($configurationArray, new ConfigRowDefinition());
+        /** @var array $data */
+        $data = $config->getData();
+        Assert::assertSame('20 minutes', $data['parameters']['incrementalFetchingLookback']);
+    }
+
+    public function testIncrementalFetchingLookbackWithQueryFails(): void
+    {
+        $configurationArray = [
+            'parameters' => [
+                'data_dir' => '/code/tests/Keboola/DbExtractor/../../data',
+                'extractor_class' => 'MySQL',
+                'outputTable' => 'fake.output',
+                'db' => $this->getDbConfigurationArray(),
+                'query' => 'select 1 from test',
+                'incrementalFetchingLookback' => '20 minutes',
+            ],
+        ];
+
+        $this->expectException(ConfigUserException::class);
+        $this->expectExceptionMessage(
+            'The incremental fetching lookback is configured, ' .
+            'but incremental fetching is not supported for custom query.',
+        );
+        new Config($configurationArray, new ConfigRowDefinition());
+    }
+
+    public function testIncrementalFetchingLookbackWithoutColumnFails(): void
+    {
+        $configurationArray = [
+            'parameters' => [
+                'data_dir' => '/code/tests/Keboola/DbExtractor/../../data',
+                'extractor_class' => 'MySQL',
+                'outputTable' => 'in.c-main.lookback',
+                'db' => $this->getDbConfigurationArray(),
+                'table' => ['tableName' => 'name', 'schema' => 'schema'],
+                'incrementalFetchingLookback' => '20 minutes',
+            ],
+        ];
+
+        $this->expectException(ConfigUserException::class);
+        $this->expectExceptionMessage(
+            'The incremental fetching lookback is configured, but "incrementalFetchingColumn" is missing.',
+        );
+        new Config($configurationArray, new ConfigRowDefinition());
     }
 
     public function testIncrementalFetchingWindowWithQueryFails(): void

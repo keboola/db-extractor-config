@@ -74,4 +74,57 @@ class WindowBoundResolverTest extends TestCase
         $r = new WindowBoundResolver();
         self::assertNull($r->resolveUpperBound('', 'TIMESTAMP', $now));
     }
+
+    public function testLookbackTimestampSubtractsDurationFromWatermark(): void
+    {
+        $r = new WindowBoundResolver();
+        // pure wall-clock shift on the watermark, no "now" involved
+        self::assertSame(
+            '2026-08-11 11:40:00',
+            $r->resolveLookbackLowerBound('2026-08-11 12:00:00', '20 minutes', 'TIMESTAMP'),
+        );
+        self::assertSame(
+            '2026-08-10 12:00:00',
+            $r->resolveLookbackLowerBound('2026-08-11 12:00:00', '1 day', 'TIMESTAMP'),
+        );
+    }
+
+    public function testLookbackNumericIntegerIsExact(): void
+    {
+        $r = new WindowBoundResolver();
+        self::assertSame('9990', $r->resolveLookbackLowerBound('10000', '10', 'INTEGER'));
+        // exact well beyond float53 precision
+        self::assertSame(
+            '9007199254740983',
+            $r->resolveLookbackLowerBound('9007199254740993', '10', 'INTEGER'),
+        );
+    }
+
+    public function testLookbackNumericDecimal(): void
+    {
+        $r = new WindowBoundResolver();
+        // Value equality, tolerant of bcmath ("99.50") vs. float-fallback ("99.5") formatting.
+        self::assertSame(99.5, (float) $r->resolveLookbackLowerBound('100.00', '0.50', 'NUMERIC'));
+    }
+
+    public function testLookbackUnparseableDurationThrows(): void
+    {
+        $r = new WindowBoundResolver();
+        $this->expectException(InvalidArgumentException::class);
+        $r->resolveLookbackLowerBound('2026-08-11 12:00:00', '20 bananas', 'TIMESTAMP');
+    }
+
+    public function testLookbackNonNumericValueThrowsForNumericColumn(): void
+    {
+        $r = new WindowBoundResolver();
+        $this->expectException(InvalidArgumentException::class);
+        $r->resolveLookbackLowerBound('100', '20 minutes', 'INTEGER');
+    }
+
+    public function testLookbackUnknownColumnTypeThrows(): void
+    {
+        $r = new WindowBoundResolver();
+        $this->expectException(InvalidArgumentException::class);
+        $r->resolveLookbackLowerBound('1', '1', 'BOOLEAN');
+    }
 }

@@ -427,14 +427,57 @@ class ExportConfigTest extends TestCase
             'primaryKey' => [],
             'incremental' => true,
             'incrementalFetchingColumn' => 'ts',
+            'incrementalFetchingMode' => 'window',
             'incrementalFetchingStart' => '20 minutes ago',
             'incrementalFetchingEnd' => 'now',
         ]);
 
         Assert::assertTrue($config->isIncrementalFetching());
+        Assert::assertTrue($config->isIncrementalFetchingWindowMode());
         Assert::assertTrue($config->hasIncrementalFetchingWindow());
+        Assert::assertTrue($config->hasIncrementalFetchingBounds());
+        Assert::assertSame('window', $config->getIncrementalFetchingMode());
         Assert::assertSame('20 minutes ago', $config->getIncrementalFetchingWindowStart());
         Assert::assertSame('now', $config->getIncrementalFetchingWindowEnd());
+    }
+
+    public function testIncrementalFetchingDefaultsToWatermarkMode(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+            'incrementalFetchingColumn' => 'ts',
+        ]);
+
+        Assert::assertTrue($config->isIncrementalFetching());
+        Assert::assertSame('watermark', $config->getIncrementalFetchingMode());
+        Assert::assertFalse($config->isIncrementalFetchingWindowMode());
+        Assert::assertFalse($config->hasIncrementalFetchingWindow());
+        Assert::assertFalse($config->hasIncrementalFetchingLookback());
+        Assert::assertFalse($config->hasIncrementalFetchingBounds());
+    }
+
+    public function testIncrementalFetchingLookback(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+            'incrementalFetchingColumn' => 'ts',
+            'incrementalFetchingLookback' => '20 minutes',
+        ]);
+
+        Assert::assertTrue($config->isIncrementalFetching());
+        Assert::assertSame('watermark', $config->getIncrementalFetchingMode());
+        Assert::assertTrue($config->hasIncrementalFetchingLookback());
+        Assert::assertTrue($config->hasIncrementalFetchingBounds());
+        Assert::assertFalse($config->hasIncrementalFetchingWindow());
+        Assert::assertSame('20 minutes', $config->getIncrementalFetchingLookback());
     }
 
     public function testIncrementalFetchingNoWindow(): void
@@ -463,6 +506,7 @@ class ExportConfigTest extends TestCase
             'columns' => [],
             'primaryKey' => [],
             'incrementalFetchingColumn' => 'ts',
+            'incrementalFetchingMode' => 'window',
             'incrementalFetchingStart' => '20 minutes ago',
         ]);
 
