@@ -89,10 +89,37 @@ class WindowBoundResolverTest extends TestCase
         );
     }
 
-    public function testLookbackNumericIntegerIsExact(): void
+    public function testLookbackAlwaysGoesBackwardsRegardlessOfPhrasing(): void
+    {
+        $r = new WindowBoundResolver();
+        $wm = '2026-08-11 12:00:00';
+        // "ago" and a stray leading sign must NOT flip the direction: all three look back 20 minutes.
+        self::assertSame('2026-08-11 11:40:00', $r->resolveLookbackLowerBound($wm, '20 minutes', 'TIMESTAMP'));
+        self::assertSame('2026-08-11 11:40:00', $r->resolveLookbackLowerBound($wm, '20 minutes ago', 'TIMESTAMP'));
+        self::assertSame('2026-08-11 11:40:00', $r->resolveLookbackLowerBound($wm, '-20 minutes', 'TIMESTAMP'));
+    }
+
+    public function testLookbackPreservesTimestamptzOffset(): void
+    {
+        $r = new WindowBoundResolver();
+        // offset-qualified watermark (timestamptz) -> offset-qualified bound (absolute instant)
+        self::assertSame(
+            '2026-08-11 11:40:00+00:00',
+            $r->resolveLookbackLowerBound('2026-08-11 12:00:00+00', '20 minutes', 'TIMESTAMP'),
+        );
+        // naive watermark (timestamp without time zone) stays naive
+        self::assertSame(
+            '2026-08-11 11:40:00',
+            $r->resolveLookbackLowerBound('2026-08-11 12:00:00', '20 minutes', 'TIMESTAMP'),
+        );
+    }
+
+    public function testLookbackNumericIntegerIsExactAndAlwaysBackwards(): void
     {
         $r = new WindowBoundResolver();
         self::assertSame('9990', $r->resolveLookbackLowerBound('10000', '10', 'INTEGER'));
+        // a negative offset still looks BACK (magnitude only)
+        self::assertSame('9990', $r->resolveLookbackLowerBound('10000', '-10', 'INTEGER'));
         // exact well beyond float53 precision
         self::assertSame(
             '9007199254740983',

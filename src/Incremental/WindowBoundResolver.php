@@ -37,18 +37,21 @@ class WindowBoundResolver
      * safety window BEHIND where it left off. This catches rows whose incremental value was assigned
      * before commit but became visible only after the watermark had already advanced past it.
      *
-     * The lookback is anchored on the watermark itself (not on "now"), so there is no timezone or clock
-     * dependency:
-     *  - TIMESTAMP: the lookback is a positive duration (e.g. "20 minutes", "1 hour", "2 days"); it is
-     *    subtracted from the watermark as a pure wall-clock shift, evaluated in UTC so DST never distorts
-     *    it and the process timezone is irrelevant.
-     *  - INTEGER/NUMERIC/FLOAT: the lookback is a positive number subtracted from the numeric watermark.
+     * The lookback is anchored on the watermark itself (not on "now"), so there is no clock dependency,
+     * and it always moves STRICTLY BACKWARDS: only the magnitude of the offset is used, so "20 minutes",
+     * "20 minutes ago" and "-20 minutes" all mean the same "look back 20 minutes" (no wrong-direction
+     * footgun from the "ago" keyword or a stray sign).
+     *  - TIMESTAMP: the lookback is a duration (e.g. "20 minutes", "1 hour", "2 days"), subtracted from
+     *    the watermark. The result keeps the watermark's own timezone qualification: an offset-qualified
+     *    watermark (timestamptz, e.g. "...+00") yields an offset-qualified bound (an absolute instant,
+     *    correct under any DB session TimeZone); a naive watermark (timestamp) yields a naive bound.
+     *  - INTEGER/NUMERIC/FLOAT: the lookback is a number subtracted from the numeric watermark.
      */
     public function resolveLookbackLowerBound(string $watermark, string $lookback, string $columnType): string
     {
         if ($columnType === self::TIMESTAMP) {
             try {
-                $baseTs = (new DateTimeImmutable($watermark, new DateTimeZone('UTC')))->getTimestamp();
+                $base = new DateTimeImmutable($watermark);
             } catch (Throwable $e) {
                 throw new InvalidArgumentException(
                     sprintf('Cannot parse incremental fetching watermark "%s" as a date.', $watermark),
@@ -56,15 +59,24 @@ class WindowBoundResolver
                     $e,
                 );
             }
-            $ts = strtotime('-' . $lookback, $baseTs);
-            if ($ts === false) {
+            $baseTs = $base->getTimestamp();
+            $signed = strtotime($lookback, $baseTs);
+            if ($signed === false) {
                 throw new InvalidArgumentException(
-                    sprintf('Cannot apply incremental fetching lookback "%s" to the watermark.', $lookback),
+                    sprintf('Cannot parse incremental fetching lookback "%s" as a duration.', $lookback),
                 );
             }
-            return (new DateTimeImmutable('@' . $ts))
-                ->setTimezone(new DateTimeZone('UTC'))
-                ->format('Y-m-d H:i:s');
+            // Subtract the MAGNITUDE of the offset, so the bound is always behind the watermark.
+            $resultTs = $baseTs - abs($signed - $baseTs);
+            $result = new DateTimeImmutable('@' . $resultTs);
+            $baseTz = $base->getTimezone();
+            if ($baseTz !== false) {
+                $result = $result->setTimezone($baseTz);
+            }
+
+            return $this->watermarkHasOffset($watermark)
+                ? $result->format('Y-m-d H:i:sP')
+                : $result->format('Y-m-d H:i:s');
         }
         if (in_array($columnType, self::NUMERIC_TYPES, true)) {
             if (!is_numeric($watermark) || !is_numeric($lookback)) {
@@ -80,6 +92,15 @@ class WindowBoundResolver
         throw new InvalidArgumentException(
             sprintf('Unsupported incremental fetching column type "%s".', $columnType),
         );
+    }
+
+    /**
+     * True when the watermark string carries an explicit timezone (trailing "Z" or a "+HH[:MM]" /
+     * "-HH[:MM]" offset), i.e. it came from a timestamptz column. Naive timestamps have neither.
+     */
+    private function watermarkHasOffset(string $watermark): bool
+    {
+        return preg_match('/(?:[zZ]|[+-]\d{2}(?::?\d{2})?)$/', trim($watermark)) === 1;
     }
 
     private function resolveBound(?string $raw, string $columnType, DateTimeImmutable $now): ?string
@@ -123,10 +144,14 @@ class WindowBoundResolver
      * exact integer math for auto-increment id columns (the realistic numeric watermark), and
      * bcmath for decimals when the extension is available (a plain float subtraction is only ever
      * reached on a FLOAT column, whose values are approximate by nature anyway).
+     *
+     * Only the magnitude of the lookback is used, so it always moves strictly backwards (mirrors the
+     * timestamp branch): "10" and "-10" both look back 10.
      */
     private function subtractNumeric(string $watermark, string $lookback): string
     {
-        if (preg_match('/^-?\d+$/', $watermark) === 1 && preg_match('/^-?\d+$/', $lookback) === 1) {
+        $lookback = ltrim($lookback, '+-');
+        if (preg_match('/^-?\d+$/', $watermark) === 1 && preg_match('/^\d+$/', $lookback) === 1) {
             if (function_exists('bcsub')) {
                 return bcsub($watermark, $lookback, 0);
             }
