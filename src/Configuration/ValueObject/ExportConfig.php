@@ -172,6 +172,92 @@ class ExportConfig implements ValueObject
         return $this->incrementalFetchingConfig;
     }
 
+    public function getIncrementalFetchingMode(): string
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        return $this->incrementalFetchingConfig->getMode();
+    }
+
+    public function isIncrementalFetchingWindowMode(): bool
+    {
+        return $this->incrementalFetchingConfig !== null
+            && $this->incrementalFetchingConfig->isWindowMode();
+    }
+
+    public function hasIncrementalFetchingLookback(): bool
+    {
+        return $this->incrementalFetchingConfig !== null
+            && $this->incrementalFetchingConfig->hasLookback();
+    }
+
+    public function getIncrementalFetchingLookback(): ?string
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        return $this->incrementalFetchingConfig->getLookback();
+    }
+
+    public function hasIncrementalFetchingWindow(): bool
+    {
+        return $this->incrementalFetchingConfig !== null
+            && $this->incrementalFetchingConfig->hasWindow();
+    }
+
+    /**
+     * True when the run needs the incremental column TYPE resolved (to compute bounds): either a window
+     * range (window mode) or a lookback offset (watermark mode). Plain watermark mode needs no type.
+     */
+    public function hasIncrementalFetchingBounds(): bool
+    {
+        return $this->hasIncrementalFetchingWindow() || $this->hasIncrementalFetchingLookback();
+    }
+
+    public function getIncrementalFetchingWindowStart(): ?string
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        return $this->incrementalFetchingConfig->getWindowStart();
+    }
+
+    public function getIncrementalFetchingWindowEnd(): ?string
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        return $this->incrementalFetchingConfig->getWindowEnd();
+    }
+
+    public function getIncrementalColumnType(): string
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        return $this->incrementalFetchingConfig->getColumnType();
+    }
+
+    public function withIncrementalColumnType(string $columnType): static
+    {
+        if ($this->incrementalFetchingConfig === null) {
+            throw new PropertyNotSetException('Incremental fetching is not enabled.');
+        }
+
+        // Use clone (not "new self(...)") so extractor-specific ExportConfig subclasses
+        // (e.g. PgsqlExportConfig, which has extra constructor params) keep their runtime
+        // class and any subclass-only properties intact.
+        $clone = clone $this;
+        $clone->incrementalFetchingConfig = $this->incrementalFetchingConfig->withColumnType($columnType);
+        return $clone;
+    }
+
     public function hasQuery(): bool
     {
         return $this->query !== null;

@@ -54,6 +54,42 @@ class TableNodesDecorator implements DecoratorInterface
             );
         }
 
+        $windowStart = $v['incrementalFetchingStart'] ?? null;
+        $windowEnd = $v['incrementalFetchingEnd'] ?? null;
+        $hasWindow = ($windowStart !== null && $windowStart !== '')
+            || ($windowEnd !== null && $windowEnd !== '');
+
+        if (!empty($v['query']) && $hasWindow) {
+            throw new InvalidConfigurationException(
+                'The incremental fetching window is configured, ' .
+                'but incremental fetching is not supported for custom query.',
+            );
+        }
+
+        if ($hasWindow && empty($v['incrementalFetchingColumn'])) {
+            throw new InvalidConfigurationException(
+                'The incremental fetching window is configured, ' .
+                'but "incrementalFetchingColumn" is missing.',
+            );
+        }
+
+        $lookback = $v['incrementalFetchingLookback'] ?? null;
+        $hasLookback = $lookback !== null && $lookback !== '';
+
+        if (!empty($v['query']) && $hasLookback) {
+            throw new InvalidConfigurationException(
+                'The incremental fetching lookback is configured, ' .
+                'but incremental fetching is not supported for custom query.',
+            );
+        }
+
+        if ($hasLookback && empty($v['incrementalFetchingColumn'])) {
+            throw new InvalidConfigurationException(
+                'The incremental fetching lookback is configured, ' .
+                'but "incrementalFetchingColumn" is missing.',
+            );
+        }
+
         return $v;
     }
 
@@ -154,6 +190,17 @@ class TableNodesDecorator implements DecoratorInterface
                 ->treatNullLike(0)
                 // Zero is taken as disabled, see "self::normalize" method
                 ->min(0)
+            ->end()
+            ->enumNode('incrementalFetchingMode')
+                // No default: absent => value object applies MODE_WATERMARK (today's behaviour),
+                // which keeps the processed config free of an injected key for existing configs.
+                ->values(['watermark', 'window'])
+            ->end()
+            ->scalarNode('incrementalFetchingLookback')
+            ->end()
+            ->scalarNode('incrementalFetchingStart')
+            ->end()
+            ->scalarNode('incrementalFetchingEnd')
             ->end();
         // @formatter:on
     }

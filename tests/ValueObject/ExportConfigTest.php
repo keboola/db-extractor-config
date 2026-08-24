@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Keboola\DbExtractorConfig\Tests\ValueObject;
 
 use Keboola\DbExtractorConfig\Configuration\ValueObject\ExportConfig;
+use Keboola\DbExtractorConfig\Configuration\ValueObject\IncrementalFetchingConfig;
+use Keboola\DbExtractorConfig\Configuration\ValueObject\InputTable;
 use Keboola\DbExtractorConfig\Configuration\ValueObject\SSLConnectionConfig;
 use Keboola\DbExtractorConfig\Exception\PropertyNotSetException;
 use PHPUnit\Framework\Assert;
@@ -413,5 +415,179 @@ class ExportConfigTest extends TestCase
         Assert::assertTrue($config->hasConfigName());
         Assert::assertSame(123, $config->getConfigId());
         Assert::assertSame('my config name', $config->getConfigName());
+    }
+
+    public function testIncrementalFetchingWindow(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+            'incremental' => true,
+            'incrementalFetchingColumn' => 'ts',
+            'incrementalFetchingMode' => 'window',
+            'incrementalFetchingStart' => '20 minutes ago',
+            'incrementalFetchingEnd' => 'now',
+        ]);
+
+        Assert::assertTrue($config->isIncrementalFetching());
+        Assert::assertTrue($config->isIncrementalFetchingWindowMode());
+        Assert::assertTrue($config->hasIncrementalFetchingWindow());
+        Assert::assertTrue($config->hasIncrementalFetchingBounds());
+        Assert::assertSame('window', $config->getIncrementalFetchingMode());
+        Assert::assertSame('20 minutes ago', $config->getIncrementalFetchingWindowStart());
+        Assert::assertSame('now', $config->getIncrementalFetchingWindowEnd());
+    }
+
+    public function testIncrementalFetchingDefaultsToWatermarkMode(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+            'incrementalFetchingColumn' => 'ts',
+        ]);
+
+        Assert::assertTrue($config->isIncrementalFetching());
+        Assert::assertSame('watermark', $config->getIncrementalFetchingMode());
+        Assert::assertFalse($config->isIncrementalFetchingWindowMode());
+        Assert::assertFalse($config->hasIncrementalFetchingWindow());
+        Assert::assertFalse($config->hasIncrementalFetchingLookback());
+        Assert::assertFalse($config->hasIncrementalFetchingBounds());
+    }
+
+    public function testIncrementalFetchingLookback(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+            'incrementalFetchingColumn' => 'ts',
+            'incrementalFetchingLookback' => '20 minutes',
+        ]);
+
+        Assert::assertTrue($config->isIncrementalFetching());
+        Assert::assertSame('watermark', $config->getIncrementalFetchingMode());
+        Assert::assertTrue($config->hasIncrementalFetchingLookback());
+        Assert::assertTrue($config->hasIncrementalFetchingBounds());
+        Assert::assertFalse($config->hasIncrementalFetchingWindow());
+        Assert::assertSame('20 minutes', $config->getIncrementalFetchingLookback());
+    }
+
+    public function testIncrementalFetchingNoWindow(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+            'incrementalFetchingColumn' => 'ts',
+        ]);
+
+        Assert::assertTrue($config->isIncrementalFetching());
+        Assert::assertFalse($config->hasIncrementalFetchingWindow());
+        Assert::assertNull($config->getIncrementalFetchingWindowStart());
+        Assert::assertNull($config->getIncrementalFetchingWindowEnd());
+    }
+
+    public function testWithIncrementalColumnTypeIsImmutable(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+            'incrementalFetchingColumn' => 'ts',
+            'incrementalFetchingMode' => 'window',
+            'incrementalFetchingStart' => '20 minutes ago',
+        ]);
+
+        // type not threaded yet
+        try {
+            $config->getIncrementalColumnType();
+            Assert::fail('Exception is expected.');
+        } catch (PropertyNotSetException $e) {
+            // ok
+        }
+
+        $typed = $config->withIncrementalColumnType('TIMESTAMP');
+        Assert::assertSame('TIMESTAMP', $typed->getIncrementalColumnType());
+        // window + column preserved through the copy
+        Assert::assertSame('20 minutes ago', $typed->getIncrementalFetchingWindowStart());
+        Assert::assertSame('ts', $typed->getIncrementalFetchingColumn());
+
+        // immutability: original is untouched and still throws
+        try {
+            $config->getIncrementalColumnType();
+            Assert::fail('Exception is expected.');
+        } catch (PropertyNotSetException $e) {
+            // ok
+        }
+    }
+
+    public function testWithIncrementalColumnTypePreservesSubclass(): void
+    {
+        // Regression test: extractor-specific ExportConfig subclasses (e.g. pgsql's
+        // PgsqlExportConfig) add their own constructor params/properties. withIncrementalColumnType()
+        // must return an instance of the SAME runtime class (via clone), not silently downgrade to
+        // the base ExportConfig - that would drop the subclass' state and break `instanceof` checks
+        // in adapters that expect the extractor-specific subclass.
+        $config = new class(
+            null,
+            null,
+            null,
+            new InputTable('table', 'schema'),
+            false,
+            IncrementalFetchingConfig::fromArray(['incrementalFetchingColumn' => 'ts']),
+            [],
+            'output-table',
+            [],
+            12,
+        ) extends ExportConfig {
+            public function getMarker(): string
+            {
+                return 'subclass-marker';
+            }
+        };
+
+        $typed = $config->withIncrementalColumnType('TIMESTAMP');
+
+        Assert::assertInstanceOf(get_class($config), $typed);
+        Assert::assertSame('subclass-marker', $typed->getMarker());
+        Assert::assertSame('TIMESTAMP', $typed->getIncrementalColumnType());
+    }
+
+    public function testWindowAccessorsThrowWhenNoIncrementalFetching(): void
+    {
+        $config = ExportConfig::fromArray([
+            'table' => ['tableName' => 'table', 'schema' => 'schema'],
+            'outputTable' => 'output-table',
+            'retries' => 12,
+            'columns' => [],
+            'primaryKey' => [],
+        ]);
+
+        Assert::assertFalse($config->isIncrementalFetching());
+        Assert::assertFalse($config->hasIncrementalFetchingWindow());
+        try {
+            $config->getIncrementalFetchingWindowStart();
+            Assert::fail('Exception is expected.');
+        } catch (PropertyNotSetException $e) {
+            // ok
+        }
+        try {
+            $config->getIncrementalColumnType();
+            Assert::fail('Exception is expected.');
+        } catch (PropertyNotSetException $e) {
+            // ok
+        }
     }
 }
